@@ -1,64 +1,135 @@
 import pygame
-import os
+import random
+import math
 
-# Inicializar o Pygame
+# Inicialização do Pygame
 pygame.init()
 
-# Definições de tamanho da tela
-x = 1280
-y = 720
+# Configurações da tela
+SCREEN_WIDTH = 1200
+SCREEN_HEIGHT = 1200
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+pygame.display.set_caption("Jogo Estilo Sonic")
 
-# Criar a tela do jogo
-screen = pygame.display.set_mode((x, y))
-pygame.display.set_caption('Jogo - sp')
+# Cores
+BLACK = (0, 0, 0)
+GREEN = (0, 255, 0)
+RED = (255, 0, 0)
 
-# Carregar a imagem de fundo
-bg_path = os.path.join('DALL·E 2024-10-03 11.36.39 - A pixel art background of a polluted futuristic cityscape for a 2D game. The design features simple, geometric skyscrapers, some with neon lights and .webp')  # Substitua com o caminho correto se necessário
-bg = pygame.image.load(bg_path)
-bg = pygame.transform.scale(bg, (x, y))
+# Carregar imagens
+background = pygame.image.load("backgraund.png.webp")
+player_img = pygame.image.load("player1.png").convert_alpha()
+enemy_img = pygame.image.load("nuvem player2.png").convert_alpha()
+cloud_img = pygame.image.load("mini nuvem dano.png").convert_alpha()
+cloud_img = pygame.transform.rotate(cloud_img, 180)
 
-# Carregar a imagem do jogador
-playerImg = pygame.image.load('personagemprc.png').convert_alpha()
-playerImg = pygame.transform.scale(playerImg, (50, 50))
+# Configurações do player
+player = pygame.Rect(100, 500, 50, 50)
+player_speed = 5
+player_vel_y = 0
+gravity = 0.8
+is_jumping = False
+lives = 3
 
-# Posição inicial do jogador
-pos_player_x = 200
-pos_player_y = 660
+# Configurações do inimigo (vilão)
+enemy = pygame.Rect(600, 500, 50, 50)
+clouds = []
+cloud_speed = 7
+enemy_timer = 0  # Controla o tempo entre os disparos
 
-# Variável de controle do loop do jogo
-rodando = True
-bg_x = 0  # Posição inicial do fundo
+# Anéis (colecionáveis)
+rings = [pygame.Rect(random.randint(100, 700), 400, 20, 20) for _ in range(5)]
+ring_count = 0
 
-while rodando:
+# Função para desenhar o texto na tela
+font = pygame.font.SysFont(None, 36)
+def draw_text(text, color, x, y):
+    surface = font.render(text, True, color)
+    screen.blit(surface, (x, y))
+
+# Função para atualizar a posição do player
+def update_player():
+    global player_vel_y, is_jumping
+
+    keys = pygame.key.get_pressed()
+    if keys[pygame.K_LEFT]:
+        player.x -= player_speed
+    if keys[pygame.K_RIGHT]:
+        player.x += player_speed
+    if keys[pygame.K_SPACE] and not is_jumping:
+        player_vel_y = -15
+        is_jumping = True
+
+    # Aplicar gravidade e atualizar a posição vertical
+    player_vel_y += gravity
+    player.y += player_vel_y
+
+    # Evitar que o player caia fora da tela
+    if player.y > 500:
+        player.y = 500
+        is_jumping = False
+
+# Função para gerar mini nuvens disparadas pelo inimigo
+def shoot_cloud():
+    cloud = pygame.Rect(enemy.x, enemy.y, 30, 30)
+    clouds.append(cloud)
+
+# Função para atualizar as nuvens disparadas
+def update_clouds():
+    global lives
+
+    for cloud in clouds[:]:
+        cloud.x -= cloud_speed
+        if cloud.colliderect(player):
+            lives -= 1
+            clouds.remove(cloud)
+        elif cloud.x < 0:
+            clouds.remove(cloud)
+
+# Função para verificar a colisão com os anéis
+def check_ring_collision():
+    global ring_count
+    for ring in rings[:]:
+        if player.colliderect(ring):
+            rings.remove(ring)
+            ring_count += 1
+
+# Loop principal do jogo
+clock = pygame.time.Clock()
+running = True
+while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            rodando = False
+            running = False
 
-    # Limpar a tela
-    screen.blit(bg, (0, 0))
+    # Atualizar a posição do player e das nuvens
+    update_player()
+    update_clouds()
 
-    # Lógica de movimentação do jogador
-    keys = pygame.key.get_pressed()  # Verifica as teclas pressionadas
-    if keys[pygame.K_LEFT]:  # Mover para a esquerda
-        pos_player_x -= 5  # Ajuste a velocidade conforme necessário
-    if keys[pygame.K_RIGHT]:  # Mover para a direita
-        pos_player_x += 5  # Ajuste a velocidade conforme necessário
+    # Verificar colisão com anéis
+    check_ring_collision()
 
-    # Lógica de movimento do fundo
-    bg_x -= 2  # Velocidade de movimento do fundo
+    # Controle do inimigo atirando nuvens
+    enemy_timer += 1
+    if enemy_timer > 60:  # Dispara uma nuvem a cada 60 frames
+        shoot_cloud()
+        enemy_timer = 0
 
-    # Reposicionar o fundo
-    rel_x = bg_x % bg.get_rect().width
-    screen.blit(bg, (rel_x - bg.get_rect().width, 0))
-    if rel_x < x:
-        screen.blit(bg, (rel_x, 0))
+    # Desenhar o fundo, personagens e interface
+    screen.blit(background, (0, 0))
+    screen.blit(player_img, player)
+    screen.blit(enemy_img, enemy)
+    for cloud in clouds:
+        screen.blit(cloud_img, cloud)
+    for ring in rings:
+        pygame.draw.rect(screen, GREEN, ring)
+    for i in range(lives):
+        pygame.draw.rect(screen, RED, (10 + i * 30, 10, 20, 20))
 
-    # Desenhar o jogador na tela
-    screen.blit(playerImg, (pos_player_x, pos_player_y))
-    
-    # Atualizar a tela
-    pygame.display.update()
+    # Exibir pontuação
+    draw_text(f"Anéis: {ring_count}", GREEN, 600, 10)
 
-# Finalizar o Pygame
+    pygame.display.flip()
+    clock.tick(30)
+
 pygame.quit()
-
