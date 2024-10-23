@@ -31,7 +31,7 @@ except pygame.error as e:
 background = pygame.transform.scale(background, (SCREEN_WIDTH, SCREEN_HEIGHT))
 
 # Configurações do player
-player = pygame.Rect(100, 500, 50, 50)
+player = pygame.Rect(100, SCREEN_HEIGHT - 100, 40, 48)
 player_speed = 5
 player_vel_y = 0
 gravity = 0.8
@@ -39,7 +39,7 @@ is_jumping = False
 lives = 3
 
 # Configurações do inimigo (vilão)
-enemy = pygame.Rect(600, 500, 50, 50)
+enemy = pygame.Rect(600, 400, 50, 50)
 enemy_speed = 2
 clouds = []  # Armazena as nuvens disparadas
 cloud_speed = 7
@@ -60,7 +60,7 @@ def update_player():
     global player_vel_y, is_jumping
 
     keys = pygame.key.get_pressed()
-    if keys[pygame.K_LEFT]:
+    if keys[pygame.K_LEFT] and player.x > 0:
         player.x -= player_speed
     if keys[pygame.K_RIGHT]:
         player.x += player_speed
@@ -76,6 +76,11 @@ def update_player():
         player.y = 500
         is_jumping = False
 
+    if player.y > SCREEN_HEIGHT - player.height:
+        player.y = SCREEN_HEIGHT - player.height
+        player_vel_y = 0
+        is_jumping = False    
+
 # Função para o inimigo perseguir o player
 def update_enemy():
     dx = player.x - enemy.x
@@ -86,10 +91,19 @@ def update_enemy():
         enemy.x += int(enemy_speed * dx / dist)
         enemy.y += int(enemy_speed * dy / dist)
 
+    if enemy.x < 0:
+        enemy.X = 0 
+    elif enemy.x > SCREEN_WIDTH - enemy.width:
+        enemy.x = SCREEN_WIDTH - enemy.width
+    if enemy.y < 0:
+        enemy.y = 0 
+    elif enemy.y > SCREEN_HEIGHT - enemy.height:
+        enemy.y = SCREEN_HEIGHT - enemy.height              
+
 # Função para disparar nuvens em direção ao player
 def shoot_cloud_towards_player():
     """Função para disparar nuvens do inimigo para o player"""
-    cloud = pygame.Rect(enemy.x, enemy.y, 30, 30)
+    cloud = pygame.Rect(enemy.x + enemy.width // 2, enemy.y + enemy.height // 2, 30, 30)
     clouds.append(cloud)
 
 # Função para atualizar a posição das nuvens disparadas
@@ -150,7 +164,8 @@ while running:
     draw_scrolling_background(player.x)
 
     # Desenhar o player e o inimigo
-    screen.blit(player_img, (SCREEN_WIDTH // 2, player.y))
+    player_y_on_screen = player.y - player_img.get_height() // 2
+    screen.blit(player_img, (SCREEN_WIDTH // 2, player_y_on_screen))
     screen.blit(enemy_img, (enemy.x - player.x + SCREEN_WIDTH // 2, enemy.y))
 
     # Desenhar as nuvens disparadas
